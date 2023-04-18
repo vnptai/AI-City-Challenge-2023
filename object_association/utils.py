@@ -37,7 +37,6 @@ class_dict = [
     'P1NoHelmet',
     'P2Helmet',
     'P2NoHelmet',
-    'crow_human',
 ]
 
 def get_class_by_names(bboxes, labels, classes=class_dict):
@@ -61,20 +60,13 @@ def get_class_by_names(bboxes, labels, classes=class_dict):
     return bboxes[labels_indexes]
 
 
-def get_original_box(path, order='class_last', classes=None, reasign_classes=None, conf_thres=0.0):
+def get_original_box(path, order='class_last'):
     original_bbox_info = {}
     f = open(path, "r")
     for line in f.readlines():
         data = line.split(',')
         video_id, frame, bb_left, bb_top, bb_width, bb_height, class_id, class_confidence = int(data[0]), int(data[1]), \
             int(data[2]), int(data[3]), int(data[4]), int(data[5]), int(data[6]), float(data[7].split('\n')[0])
-        if type(classes) is list:
-            if class_id not in classes:
-                continue
-            if reasign_classes is not None:
-                class_id = reasign_classes[classes.index(class_id)]
-        if class_confidence < conf_thres:
-            continue
         if video_id not in original_bbox_info.keys():
             original_bbox_info[video_id] = {}
         if frame not in original_bbox_info[video_id].keys():
@@ -297,7 +289,9 @@ def overlap_ratio(boxA, boxB):
     return overlap_ratio     
 
 
-def remove_occluded_objects_from_array(objects, classes, remove_threshold=0.6):
+
+
+def remove_occluded_objects(objects, classes, remove_threshold=0.6):
     """Remove occluded objects
 
     Args:
@@ -319,7 +313,6 @@ def remove_occluded_objects_from_array(objects, classes, remove_threshold=0.6):
     remove_indexes = list(set(remove_indexes))
     objects = np.delete(objects, remove_indexes, axis=0)
     return objects
-
 
 def remove_small_object(bboxes, image_w, image_h, min_size=40):
     widths = (bboxes[:,2] - bboxes[:,0]) * image_w
@@ -344,7 +337,7 @@ def remove_ignore_objects(bboxes1, bboxes2, threshold=0.2):
     return np.concatenate((bboxes1, bboxes2), axis=0)
 
 
-def remove_occluded_objects(objects, remove_threshold=0.8):
+def remove_redundant_objects(objects, remove_threshold=0.8):
     """Remove redundant motor objects
 
     Args:
@@ -352,10 +345,10 @@ def remove_occluded_objects(objects, remove_threshold=0.8):
         remove_threshole (float): if overlap_areas > remove_threshold then remove the motor
     """
     remove_indexes = []
-    num_vehicle = len(objects)
+    num_motor = len(objects)
     # import pdb; pdb.set_trace()
-    for i in range(0, num_vehicle - 1):
-        for j in range(i+1, num_vehicle):
+    for i in range(0, num_motor - 1):
+        for j in range(i+1, num_motor):
             if overlap_ratio(objects[i].get_box_info(),objects[j].get_box_info()) > remove_threshold:
                 boxAArea_conf = objects[i].get_box_info()[-2]
                 boxBArea_conf = objects[j].get_box_info()[-2]

@@ -150,7 +150,6 @@ class Object_Association(object):
             self.export_file.close()
 
     def foward_frame(self, frame, video_id, frame_id):
-        frame_preds = []
         frame_heads = []
         frame_humans = []
         frame_motors = []
@@ -194,7 +193,6 @@ if __name__ == '__main__':
     infer = Infer(video_folder=VIDEO_FOLDER,
                 head_thresh=0.2,
                 display=True,
-                export_path='result_files/best_coco_combination.txt',
                 prediction_path='/data/huytq/data/AIcitychallenge/track5/code/vnpt_aicity_challenge/result_files/best.txt',
                 head_label_path='/data/huytq/data/AIcitychallenge/track5/code/vnpt_aicity_challenge/result_files/head.txt')
     infer.foward_videos()

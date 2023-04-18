@@ -62,7 +62,7 @@ class my_tracking(object):
         for trk in reversed(self.trackers):
             d = trk.get_state()[0]
             if (trk.time_since_update < 1) and trk.hit_streak >= self.min_hits:
-                for human in trk.bbox_human:
+                for human in trk.human_bboxes:
                     if len(human) > 0:
                         ret_human.append(human)
                 # ret.append(np.concatenate((d, [trk.score], [trk.class_id], [trk.id])).reshape(1, -1))

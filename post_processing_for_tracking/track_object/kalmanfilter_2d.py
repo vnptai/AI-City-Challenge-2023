@@ -45,7 +45,7 @@ class KalmanBoxTracker(object):
         self.kf = KalmanFilter(dim_x=7, dim_z=4)
         self.kf.F = np.array(
             [[1, 0, 0, 0, 1, 0, 0], [0, 1, 0, 0, 0, 1, 0], [0, 0, 1, 0, 0, 0, 1], [0, 0, 0, 1, 0, 0, 0],
-             [0, 0, 0, 0, 1, 0, 0], [0, 0, 0, 0, 0, 1, 0], [0, 0, 0, 0, 0, 0, 1]])
+            [0, 0, 0, 0, 1, 0, 0], [0, 0, 0, 0, 0, 1, 0], [0, 0, 0, 0, 0, 0, 1]])
         self.kf.H = np.array(
             [[1, 0, 0, 0, 0, 0, 0], [0, 1, 0, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0, 0], [0, 0, 0, 1, 0, 0, 0]])
 
@@ -80,14 +80,17 @@ class KalmanBoxTracker(object):
         self.frame_id = 0
         self.class_ = None
         self.dir_class = [{"id": 0, "prob": 0.0}, {"id": 1, "prob": 0.0},
-                          {"id": 2, "prob": 0.0}, {"id": 3, "prob": 0.0},
-                          {"id": 4, "prob": 0.0}, {"id": 5, "prob": 0.0},
-                          {"id": 6, "prob": 0.0}]
+                        {"id": 2, "prob": 0.0}, {"id": 3, "prob": 0.0},
+                        {"id": 4, "prob": 0.0}, {"id": 5, "prob": 0.0},
+                        {"id": 6, "prob": 0.0}]
         self.class_voting1 = None
         self.count__ = 0
         self.class_voting2 = None
         self.enable_voting = enable_voting
 
+
+
+        ####################33
         self.class_head_p2 = None
         self.count_head_p2 = 0
         self.class_head_p1 = None
@@ -97,7 +100,7 @@ class KalmanBoxTracker(object):
         humans = results.humans
         heads = results.heads
 
-        self.bbox_human = []
+        self.human_bboxes = []
         self.bbox_head = []
         self.head_h = []
         for human in humans:
@@ -107,7 +110,7 @@ class KalmanBoxTracker(object):
                 self.head_h.append(1)
             else:
                 self.head_h.append(0)
-            self.bbox_human.append([box[0], box[1], box[2], box[3], box[4], box[5], float(box[6])])
+            self.human_bboxes.append([box[0], box[1], box[2], box[3], box[4], box[5], float(box[6])])
         for head in heads:
             box = head.get_box_info()
             self.bbox_head.append([box[0], box[1], box[2], box[3], box[4], box[5], float(box[6])])
@@ -126,14 +129,113 @@ class KalmanBoxTracker(object):
         o = wh / ((bb_test[2] - bb_test[0]) * (bb_test[3] - bb_test[1])
                   + (bb_gt[2] - bb_gt[0]) * (bb_gt[3] - bb_gt[1]) - wh)
         return (o)
+    
+    def direct_detection(self, center_point_current):
+        """Detect the motor direction 1 if IN detection and 0 if OUT detection
 
+        Args:
+            center_point_current (list): motor center coordinates
+        """
+        if self.check_direction is not None:
+            if center_point_current[1] - self.center_point[1] > 0:
+                self.check_direction.append(1)
+            else:
+                self.check_direction.append(0)
+            if len(self.check_direction) >= 3:
+                rs_in = self.check_direction.count(1)
+                rs_out = self.check_direction.count(0)
+                if rs_in >= rs_out:
+                    self.direction = 1  # in
+                else:
+                    self.direction = 0  # out
+                self.check_direction = None
+        self.center_point = center_point_current
+        
+    
+    def P1_P2_checking(self):
+        """Checking if P1 and P2 is on the motorbike
+        """
+        if self.class_head_p2 is None:
+            if len(self.bbox_head) == 3:  # > 2
+                self.count_head_p2 += 1
+            if self.count_head_p2 > 3:  # 1
+                self.class_head_p2 = 'P2'
+        if self.class_head_p1 is None:
+            if len(self.bbox_head) == 2:
+                self.count_head_p1 += 1
+            if self.count_head_p1 > 3:
+                self.class_head_p1 = "P1"
+                
+    def attachment_process(self):
+        """Reassigning new class for humans on the motorbike
+        """
+        
+        self.human_bboxes = np.array(self.human_bboxes)
+        ###### Passenger 2 (P2) is on the motor ######
+        if self.class_head_p2 == "P2":
+            if len(self.human_bboxes) == 1:
+                if self.direction == 0:
+                    if self.human_bboxes[0][4] not in [5, 6]:
+                        self.human_bboxes[:, 4] = 6 if self.human_bboxes[0][4] in [2, 4] else 5
+            elif len(self.human_bboxes) == 2:
+                    if self.direction == 1:
+                        ids = np.argsort(self.human_bboxes[:, 1])
+                        if self.human_bboxes[ids[0]][4] not in [5, 6]:
+                            self.human_bboxes[ids[0]][4] = 6 if self.human_bboxes[ids[0]][4] in [2, 4] else 5
+                    else:
+                        ids = np.argsort(self.human_bboxes[:, 1])
+                        if self.human_bboxes[ids[1]][4] not in [5, 6]:
+                            self.human_bboxes[ids[1]][4] = 6 if self.human_bboxes[ids[1]][4] in [2, 4] else 5
+
+            elif len(self.human_bboxes) == 3:
+                if self.direction == 1:
+                    ids = np.argsort(self.human_bboxes[:, 1])
+                    if self.human_bboxes[ids[0]][4] not in [5, 6]:
+                        self.human_bboxes[ids[0]][4] = 6 if self.human_bboxes[ids[0]][4] in [2, 4] else 5
+                    if self.human_bboxes[ids[1]][4] not in [3, 4]:
+                        self.human_bboxes[ids[1]][4] = 4 if self.human_bboxes[ids[1]][4] in [2, 6] else 3
+                    if self.human_bboxes[ids[2]][4] not in [1, 2]:
+                        self.human_bboxes[ids[2]][4] = 2 if self.human_bboxes[ids[2]][4] in [4, 6] else 1
+                else:
+                    ids = np.argsort(self.human_bboxes[:, 1])
+                    if self.human_bboxes[ids[0]][4] not in [1, 2]:
+                        self.human_bboxes[ids[0]][4] = 2 if self.human_bboxes[ids[0]][4] in [4, 6] else 1
+                    if self.human_bboxes[ids[1]][4] not in [3, 4]:
+                        self.human_bboxes[ids[1]][4] = 4 if self.human_bboxes[ids[1]][4] in [2, 6] else 3
+                    if self.human_bboxes[ids[2]][4] not in [5, 6]:
+                        self.human_bboxes[ids[2]][4] = 6 if self.human_bboxes[ids[2]][4] in [2, 4] else 5
+
+        ###### Passenger 2 (P2) is not on the motor and Passenger 1 (P1) is on the motor ######
+        if self.class_head_p2 is None and self.class_head_p1 == "P1":
+            if len(self.human_bboxes) == 1:
+                if self.direction == 0:
+                    if self.human_bboxes[0][4] not in [4, 3]:
+                        self.human_bboxes[:, 4] = 4 if self.human_bboxes[0][4] in [2, 6] else 3
+                else:
+                    if self.human_bboxes[0][4] not in [2, 1]:
+                        self.human_bboxes[:, 4] = 2 if self.human_bboxes[0][4] in [4, 6] else 1
+
+            elif len(self.human_bboxes) == 2:
+                if self.direction == 1:
+                    ids = np.argsort(self.human_bboxes[:, 1])
+                    if self.human_bboxes[ids[0]][4] not in [4, 3]:
+                        self.human_bboxes[ids[0]][4] = 4 if self.human_bboxes[ids[0]][4] in [2, 6] else 3
+                    if self.human_bboxes[ids[1]][4] not in [1, 2]:
+                        self.human_bboxes[ids[1]][4] = 2 if self.human_bboxes[ids[1]][4] in [4, 6] else 1
+                else:
+                    ids = np.argsort(self.human_bboxes[:, 1])
+                    if self.human_bboxes[ids[0]][4] not in [1, 2]:
+                        self.human_bboxes[ids[0]][4] = 2 if self.human_bboxes[ids[0]][4] in [4, 6] else 1
+                    if self.human_bboxes[ids[1]][4] not in [4, 3]:
+                        self.human_bboxes[ids[1]][4] = 4 if self.human_bboxes[ids[1]][4] in [2, 6] else 3
+    
     def update(self, bbox, results):
         """
         Updates the state vector with observed bbox.
         """
         humans = results.humans
         heads = results.heads
-        self.bbox_human = []
+        self.human_bboxes = []
         self.bbox_head = []
         for head in heads:
             box = head.get_box_info()
@@ -155,96 +257,14 @@ class KalmanBoxTracker(object):
                 self.head_h.append(1)
             else:
                 self.head_h.append(0)
-            self.bbox_human.append([box[0], box[1], box[2], box[3], int(box[4]), box[5]])
+            self.human_bboxes.append([box[0], box[1], box[2], box[3], int(box[4]), box[5]])
         # check direction
-        center_point_current = [(bbox[0] + bbox[2]) // 2, (bbox[1] + bbox[3]) // 2]
-        if self.check_direction is not None:
-            if center_point_current[1] - self.center_point[1] > 0:
-                self.check_direction.append(1)
-            else:
-                self.check_direction.append(0)
-            if len(self.check_direction) >= 3:
-                rs_in = self.check_direction.count(1)
-                rs_out = self.check_direction.count(0)
-                if rs_in >= rs_out:
-                    self.direction = 1  # in
-                else:
-                    self.direction = 0  # out
-                self.check_direction = None
-        self.center_point = center_point_current
-        if self.class_head_p2 is None:
-            if len(self.bbox_head) == 3:  # > 2
-                self.count_head_p2 += 1
-            if self.count_head_p2 > 3:  # 1
-                self.class_head_p2 = 'P2'
-        if self.class_head_p1 is None:
-            if len(self.bbox_head) == 2:
-                self.count_head_p1 += 1
-            if self.count_head_p1 > 3:
-                self.class_head_p1 = "P1"
-        self.bbox_human = np.array(self.bbox_human)
-        if self.class_head_p2 == "P2":
-            if len(self.bbox_human) == 1:
-                if self.direction == 0:
-                    if self.bbox_human[0][4] not in [5, 6]:
-                        self.bbox_human[:, 4] = 6 if self.bbox_human[0][4] in [2, 4] else 5
-                        # print("case 0")
-            elif len(self.bbox_human) == 2:
-                # if len(self.head_h) == 3:
-                    if self.direction == 1:
-                        ids = np.argsort(self.bbox_human[:, 1])
-                        if self.bbox_human[ids[0]][4] not in [5, 6]:
-                            self.bbox_human[ids[0]][4] = 6 if self.bbox_human[ids[0]][4] in [2, 4] else 5
-                            # print("case 1")
-                    else:
-                        ids = np.argsort(self.bbox_human[:, 1])
-                        if self.bbox_human[ids[1]][4] not in [5, 6]:
-                            self.bbox_human[ids[1]][4] = 6 if self.bbox_human[ids[1]][4] in [2, 4] else 5
-                            # print("case 11")
-
-            elif len(self.bbox_human) == 3:
-                if self.direction == 1:
-                    ids = np.argsort(self.bbox_human[:, 1])
-                    if self.bbox_human[ids[0]][4] not in [5, 6]:
-                        self.bbox_human[ids[0]][4] = 6 if self.bbox_human[ids[0]][4] in [2, 4] else 5
-                    if self.bbox_human[ids[1]][4] not in [3, 4]:
-                        self.bbox_human[ids[1]][4] = 4 if self.bbox_human[ids[1]][4] in [2, 6] else 3
-                    if self.bbox_human[ids[2]][4] not in [1, 2]:
-                        self.bbox_human[ids[2]][4] = 2 if self.bbox_human[ids[2]][4] in [4, 6] else 1
-                else:
-                    ids = np.argsort(self.bbox_human[:, 1])
-                    if self.bbox_human[ids[0]][4] not in [1, 2]:
-                        self.bbox_human[ids[0]][4] = 2 if self.bbox_human[ids[0]][4] in [4, 6] else 1
-                    if self.bbox_human[ids[1]][4] not in [3, 4]:
-                        self.bbox_human[ids[1]][4] = 4 if self.bbox_human[ids[1]][4] in [2, 6] else 3
-                    if self.bbox_human[ids[2]][4] not in [5, 6]:
-                        self.bbox_human[ids[2]][4] = 6 if self.bbox_human[ids[2]][4] in [2, 4] else 5
-                    # print("case 2")
-        if self.class_head_p2 is None and self.class_head_p1 == "P1":
-            if len(self.bbox_human) == 1:
-                if self.direction == 0:
-                    if self.bbox_human[0][4] not in [4, 3]:
-                        self.bbox_human[:, 4] = 4 if self.bbox_human[0][4] in [2, 6] else 3
-                        # print("case 3")
-                else:
-                    if self.bbox_human[0][4] not in [2, 1]:
-                        self.bbox_human[:, 4] = 2 if self.bbox_human[0][4] in [4, 6] else 1
-                        # print("case 31")
-
-            elif len(self.bbox_human) == 2:
-                if self.direction == 1:
-                    ids = np.argsort(self.bbox_human[:, 1])
-                    if self.bbox_human[ids[0]][4] not in [4, 3]:
-                        self.bbox_human[ids[0]][4] = 4 if self.bbox_human[ids[0]][4] in [2, 6] else 3
-                    if self.bbox_human[ids[1]][4] not in [1, 2]:
-                        self.bbox_human[ids[1]][4] = 2 if self.bbox_human[ids[1]][4] in [4, 6] else 1
-                else:
-                    ids = np.argsort(self.bbox_human[:, 1])
-                    if self.bbox_human[ids[0]][4] not in [1, 2]:
-                        self.bbox_human[ids[0]][4] = 2 if self.bbox_human[ids[0]][4] in [4, 6] else 1
-                    if self.bbox_human[ids[1]][4] not in [4, 3]:
-                        self.bbox_human[ids[1]][4] = 4 if self.bbox_human[ids[1]][4] in [2, 6] else 3
-                # print("case 4")
+        current_center_point = [(bbox[0] + bbox[2]) // 2, (bbox[1] + bbox[3]) // 2]
+        self.direct_detection(current_center_point)
+        ######## find p1,p2
+        self.P1_P2_checking()
+        ### update p1p2
+        self.attachment_process()
 
     def predict(self):
         """
