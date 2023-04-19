@@ -8,7 +8,8 @@ Python 3.7 or later with dependencies listed in requirements.txt. Run the below 
 pip install -r requirements.txt
 ```
 # Data Preparation For Training
-Download the dataset, which is provided by 2023 ACity Challenge Track 5 and put the download file into ./aicity_dataset/
+Download [the AICityChallenge dataset](https://www.aicitychallenge.org/2023-data-and-evaluation/)
+ , which is provided by 2023 ACity Challenge Track 5 and put the download file into ./aicity_dataset/
 
 Then using this command to split videos into frames for training, which will generate images corresponding to input videos inside the folder ./aicity_dataset/aicity2023_track5_images:
 ```commandline
