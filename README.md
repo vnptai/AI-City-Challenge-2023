@@ -8,45 +8,51 @@ Python 3.7 or later with dependencies listed in requirements.txt. Run the below 
 pip install -r requirements.txt
 ```
 # Data Preparation For Training
-Download the training data, which is provided by 2023 ACity Challenge Track 5 and put the download file into ./aicity_dataset/
+Download the dataset, which is provided by 2023 ACity Challenge Track 5 and put the download file into ./aicity_dataset/
 
-In the video dataset, which we've broken down into frames that can be downloaded here 
-.........
+Then using this command to split videos into frames for training, which will generate images corresponding to input videos inside the folder ./aicity_dataset/aicity2023_track5_images:
+```commandline
+python videos2images.py
+```
 
 
 # Reproduce the result on AICity 2023 Challenge Track 5
-Our solution implemented in 3 steps
-## STEP 1 - Baseline training
-### Train
+Our solution consists of 3 steps
+## STEP 1 - Helmet Detection for Motorcyclists
+### Training
+The labels file is helmet_detection_for_motorcyclists/dataset/trainset_ai.csv
 
-Download the training data label zip file and extract it inside ./baseline_training/datasets/
-
-Please correct the data path in the file config ./baseline_training/.....
+Please correct the data path in the file config ./helmet_detection_for_motorcyclists/.....
 ```commandline
-cd baseline_training
+cd helmet_detection_for_motorcyclists
 python effdet_train.py
 .....
 ```
 ### Inference
+Pretrained model of helmet detection for motorcyclists model can be download here. After downloading the pretrained model, please put the file into ...
+
 ```commandline
 python predict.py
 ```
-After running the executable, the result file will be received as a result_motorcyclist.txt in the ./baseline_training
+After running the executable, the result file will be received as a motorcyclist_helmet_results.txt in the ./helmet_detection_for_motorcyclists
 
-## STEP 2 - Head training
-Download the training data zip file and extract it inside ./head_training/datasets/
+## STEP 2 - Head Detection
+### Training
+The labels file is head_detection/dataset/trainset_head.csv
 
-Please correct the data path in the file config ./head_training/.....
+Please correct the data path in the file config ./head_detection/.....
 ```commandline
-cd head_training
+cd head_detection
 python effdet_train.py
 .....
 ```
 ### Inference
+Pretrained model of head detection model can be download here. After downloading the pretrained model, please put the file into ...
+
 ```commandline
 python predict.py
 ```
-After running the executable, the result file will be received as a result_head.txt in the ./head_training
+After running the executable, the result file will be received as a head_results.txt in the ./head_detection
 
 ## STEP 3 - Post processing for tracking
 In this step we used the result files of step 1 and step 2 and combined with the module object association to get the final result
@@ -72,7 +78,7 @@ python infer.py
 If you find our work useful, please cite the following:
 
 ```text
-@inreview{Tran2022,  
+@inreview{vnpt-cvpr-2023,  
     author={Viet Hung Duong and Quang Huy Tran and Huu Si Phuc Nguyen and Duc Quyen Nguyen and Tien Cuong Nguyen},  
     title={Helmet Rule Violation Detection for Motorcyclists using a Custom
 Tracking Framework and Advanced Object Detection Techniques},  
@@ -84,10 +90,10 @@ Tracking Framework and Advanced Object Detection Techniques},
 ## Contact
 Viet Hung Duong (hungdv@vnpt.vn)
 
-Quang Huy Tran (huytq@vnpt.vn)
+Quang Huy Tran (tqhuy@vnpt.vn)
 
 Huu Si Phuc Nguyen (phucnhs@vnpt.vn)
 
-Duc Quyen Nguyen (quyennd@vnpt.vn)
+Duc Quyen Nguyen (quyennd2000@vnpt.vn)
 
-Tien Cuong Nguyen (cuongnt@vnpt.vn)
+Tien Cuong Nguyen (nguyentiencuong@vnpt.vn)

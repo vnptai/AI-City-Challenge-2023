@@ -46,8 +46,8 @@ def write_enembled_results(file, objects, video_id, frame_id, w, h, conf_thres=0
 
 
 class Object_Association(object):
-    def __init__(self, prediction_path='result_files/best.txt',
-                head_label_path='result_files/head.txt',
+    def __init__(self, motorcyclist_helmet_labels=None,
+                head_labels=None,
                 video_folder=VIDEO_FOLDER,
                 export_path=None,
                 write_to_video=WRITE_TO_VIDEO,
@@ -71,8 +71,8 @@ class Object_Association(object):
         self.w = 1920
         self.h = 1080
 
-        self.acity_labels = get_original_box(prediction_path, order='conf_last')
-        self.heads = get_original_box(head_label_path, order='conf_last')
+        self.acity_labels = get_original_box(motorcyclist_helmet_labels, order='conf_last')
+        self.heads = get_original_box(head_labels, order='conf_last')
 
         self.export_file = open(export_path, 'w+') if export_path else None
 
@@ -193,6 +193,6 @@ if __name__ == '__main__':
     infer = Infer(video_folder=VIDEO_FOLDER,
                 head_thresh=0.2,
                 display=True,
-                prediction_path='/data/huytq/data/AIcitychallenge/track5/code/vnpt_aicity_challenge/result_files/best.txt',
-                head_label_path='/data/huytq/data/AIcitychallenge/track5/code/vnpt_aicity_challenge/result_files/head.txt')
+                motorcyclist_helmet_labels='/data/huytq/data/AIcitychallenge/track5/code/vnpt_aicity_challenge/result_files/best.txt',
+                head_labels='/data/huytq/data/AIcitychallenge/track5/code/vnpt_aicity_challenge/result_files/head.txt')
     infer.foward_videos()

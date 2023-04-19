@@ -11,13 +11,17 @@ CLASSES = ['motorbike', 'DHelmet', 'DNoHelmet', 'P1Helmet', 'P1NoHelmet', 'P2Hel
 
 arg = argparse.ArgumentParser()
 arg.add_argument('--video-folder', required=False,
-                help='video-folder', default="/data/AIcitychallenge/track5/aicity2023_track5/aicity2023_track5_test/videos/")
+                help='test video folder', default="./aicity_dataset/aicity2023_track5_test/videos/")
+arg.add_argument('--motorcyclist_helmet_output', required=False,
+                help='output file from Helmet Detection for Motorcyclists model', default="motorcyclist_helmet_results.txt")
+arg.add_argument('--head_output', required=False,
+                help='output file from Helmet Detection model', default="head_results.txt")
 args = arg.parse_args()
 
 obj_association = Object_Association(video_folder=args.video_folder,
             display=False,
-            prediction_path='./baseline_training/pseudo.txt',
-            head_label_path='./head_training/effdet_ed7_head.txt')
+            motorcyclist_helmet_labels=args.motorcyclist_helmet_output,
+            head_labels=args.head_output)
 
 conf_class_motor, conf_class_D, conf_class_D_No, conf_class_P1, cond_class_P1_No, conf_class_P2, conf_class_P2_No = 0.35, 0.32, 0.32, 0.32, 0.32, 0.2, 0.2
 file_output = open("final_results.txt", "w")
@@ -27,15 +31,12 @@ def sorter(item):
     return int(item[1])
 
 
-for video_path in tqdm.tqdm(sorted(glob.glob(args.video_folder + "/*"))):
+for video_path in tqdm.tqdm(sorted(glob.glob(args.video_folder + "/*.mp4"))):
     cap = cv2.VideoCapture(video_path)
     tracking = tracker.my_tracking()
     video_name = os.path.splitext(os.path.basename(video_path))[0]
     frame_id = 0
     output = []
-    bbox_value_old = []
-    bbox_id_old = []
-    c_frame_miss = 0
     video_id = int(video_path.split('/')[-1].split('.')[0])
 
     while cap.isOpened():
@@ -45,14 +46,14 @@ for video_path in tqdm.tqdm(sorted(glob.glob(args.video_folder + "/*"))):
         except Exception as e:
             break
         frame_id += 1
-        results_obj_association = obj_association.foward_frame(frame, video_id, frame_id)
+        associated_objects = obj_association.foward_frame(frame, video_id, frame_id)
         bbox_motor = []
-        for rs in results_obj_association:
+        for rs in associated_objects:
             box = rs.get_box_info()
             bbox_motor.append([box[0], box[1], box[2], box[3], int(box[4]), box[5]])
         output_tracker = []
         if len(bbox_motor) > 0:
-            output_vehicle, output_human = tracking.update(np.array(bbox_motor), results_obj_association)
+            output_vehicle, output_human = tracking.update(np.array(bbox_motor), associated_objects)
             for box in output_vehicle:
                 output_tracker.append([int(box[0]), int(box[1]), int(box[2]), int(box[3]), float(box[4]), int(box[5])])
             for box in output_human:
