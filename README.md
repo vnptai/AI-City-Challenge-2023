@@ -57,10 +57,8 @@ After running the executable, the result file will be received as a head_results
 ## STEP 3 - Post processing for tracking
 In this step we used the result files of step 1 and step 2 and combined with the module object association to get the final result
 
-Please correct the resulting file path in infer.py
-
 ```commandline
-python infer.py
+python infer.py --video_path AICityChallenge_track5_video_test_folder --motorcyclist_helmet_output motorcyclist_helmet_results.txt --head_output head_results.txt
 ```
 
 ## Note: We execute the training with one DGX node with 8 NVIDIA A100-40GB GPU
