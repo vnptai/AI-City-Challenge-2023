@@ -37,7 +37,7 @@ class KalmanBoxTracker(object):
     """
     count = 0
 
-    def __init__(self, bbox, enable_voting=False, results=None):
+    def __init__(self, bbox, results=None):
         """
         Initialises a tracker using initial bounding box.
         """
@@ -45,7 +45,7 @@ class KalmanBoxTracker(object):
         self.kf = KalmanFilter(dim_x=7, dim_z=4)
         self.kf.F = np.array(
             [[1, 0, 0, 0, 1, 0, 0], [0, 1, 0, 0, 0, 1, 0], [0, 0, 1, 0, 0, 0, 1], [0, 0, 0, 1, 0, 0, 0],
-            [0, 0, 0, 0, 1, 0, 0], [0, 0, 0, 0, 0, 1, 0], [0, 0, 0, 0, 0, 0, 1]])
+             [0, 0, 0, 0, 1, 0, 0], [0, 0, 0, 0, 0, 1, 0], [0, 0, 0, 0, 0, 0, 1]])
         self.kf.H = np.array(
             [[1, 0, 0, 0, 0, 0, 0], [0, 1, 0, 0, 0, 0, 0], [0, 0, 1, 0, 0, 0, 0], [0, 0, 0, 1, 0, 0, 0]])
 
@@ -68,29 +68,6 @@ class KalmanBoxTracker(object):
         self.check_direction = []
         self.motion = 2
         self.direction = 2
-        self.bbox_old = bbox
-        self.check_motion = []
-        # self.uuid = bbox[-1]
-        # self.uuid_match = np.where((dets[:, -1] == self.uuid) & (dets[:, 0] != bbox[0]))[0]
-        # self.list_bbox_match = dets[self.uuid_match]
-        self.class_id_r2 = None  # 0 - driver , 1 - p1, 2 - p2
-        self.enable_motion = False
-
-        # voting
-        self.frame_id = 0
-        self.class_ = None
-        self.dir_class = [{"id": 0, "prob": 0.0}, {"id": 1, "prob": 0.0},
-                        {"id": 2, "prob": 0.0}, {"id": 3, "prob": 0.0},
-                        {"id": 4, "prob": 0.0}, {"id": 5, "prob": 0.0},
-                        {"id": 6, "prob": 0.0}]
-        self.class_voting1 = None
-        self.count__ = 0
-        self.class_voting2 = None
-        self.enable_voting = enable_voting
-
-
-
-        ####################33
         self.class_head_p2 = None
         self.count_head_p2 = 0
         self.class_head_p1 = None
@@ -129,7 +106,7 @@ class KalmanBoxTracker(object):
         o = wh / ((bb_test[2] - bb_test[0]) * (bb_test[3] - bb_test[1])
                   + (bb_gt[2] - bb_gt[0]) * (bb_gt[3] - bb_gt[1]) - wh)
         return (o)
-    
+
     def direct_detection(self, center_point_current):
         """Detect the motor direction 1 if IN detection and 0 if OUT detection
 
@@ -150,8 +127,7 @@ class KalmanBoxTracker(object):
                     self.direction = 0  # out
                 self.check_direction = None
         self.center_point = center_point_current
-        
-    
+
     def P1_P2_checking(self):
         """Checking if P1 and P2 is on the motorbike
         """
@@ -165,11 +141,11 @@ class KalmanBoxTracker(object):
                 self.count_head_p1 += 1
             if self.count_head_p1 > 3:
                 self.class_head_p1 = "P1"
-                
+
     def attachment_process(self):
         """Reassigning new class for humans on the motorbike
         """
-        
+
         self.human_bboxes = np.array(self.human_bboxes)
         ###### Passenger 2 (P2) is on the motor ######
         if self.class_head_p2 == "P2":
@@ -178,14 +154,14 @@ class KalmanBoxTracker(object):
                     if self.human_bboxes[0][4] not in [5, 6]:
                         self.human_bboxes[:, 4] = 6 if self.human_bboxes[0][4] in [2, 4] else 5
             elif len(self.human_bboxes) == 2:
-                    if self.direction == 1:
-                        ids = np.argsort(self.human_bboxes[:, 1])
-                        if self.human_bboxes[ids[0]][4] not in [5, 6]:
-                            self.human_bboxes[ids[0]][4] = 6 if self.human_bboxes[ids[0]][4] in [2, 4] else 5
-                    else:
-                        ids = np.argsort(self.human_bboxes[:, 1])
-                        if self.human_bboxes[ids[1]][4] not in [5, 6]:
-                            self.human_bboxes[ids[1]][4] = 6 if self.human_bboxes[ids[1]][4] in [2, 4] else 5
+                if self.direction == 1:
+                    ids = np.argsort(self.human_bboxes[:, 1])
+                    if self.human_bboxes[ids[0]][4] not in [5, 6]:
+                        self.human_bboxes[ids[0]][4] = 6 if self.human_bboxes[ids[0]][4] in [2, 4] else 5
+                else:
+                    ids = np.argsort(self.human_bboxes[:, 1])
+                    if self.human_bboxes[ids[1]][4] not in [5, 6]:
+                        self.human_bboxes[ids[1]][4] = 6 if self.human_bboxes[ids[1]][4] in [2, 4] else 5
 
             elif len(self.human_bboxes) == 3:
                 if self.direction == 1:
@@ -228,7 +204,7 @@ class KalmanBoxTracker(object):
                         self.human_bboxes[ids[0]][4] = 2 if self.human_bboxes[ids[0]][4] in [4, 6] else 1
                     if self.human_bboxes[ids[1]][4] not in [4, 3]:
                         self.human_bboxes[ids[1]][4] = 4 if self.human_bboxes[ids[1]][4] in [2, 6] else 3
-    
+
     def update(self, bbox, results):
         """
         Updates the state vector with observed bbox.
@@ -246,7 +222,7 @@ class KalmanBoxTracker(object):
         self.hits += 1
         self.hit_streak += 1
         if len(bbox) > 0:
-            self.kf.update(convert_bbox_to_z(bbox))  # ton cpu
+            self.kf.update(convert_bbox_to_z(bbox))
         self.score = bbox[5]
         self.class_id = bbox[4]
         self.head_h = []
