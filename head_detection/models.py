@@ -40,28 +40,28 @@ def get_effdet(backbone, num_classes=3, img_size=512, mode='train', pretrained=T
         pretrained_backbone = False
     if backbone == 'ed0':
         config = get_efficientdet_config('tf_efficientdet_d0')
-        checkpoint = torch.load('effdet-pretrained/tf_efficientdet_d0-d92fd44f.pth')
+        checkpoint = torch.load('../helmet_detection_for_motorcyclists/effdet-pretrained/tf_efficientdet_d0-d92fd44f.pth')
     elif backbone == 'ed1':
         config = get_efficientdet_config('tf_efficientdet_d1')
-        checkpoint = torch.load('effdet-pretrained/tf_efficientdet_d1-4c7ebaf2.pth')
+        checkpoint = torch.load('../helmet_detection_for_motorcyclists/effdet-pretrained/tf_efficientdet_d1-4c7ebaf2.pth')
     elif backbone == 'ed2':
         config = get_efficientdet_config('tf_efficientdet_d2')
-        checkpoint = torch.load('effdet-pretrained/tf_efficientdet_d2-cb4ce77d.pth')
+        checkpoint = torch.load('../helmet_detection_for_motorcyclists/effdet-pretrained/tf_efficientdet_d2-cb4ce77d.pth')
     elif backbone == 'ed3':
         config = get_efficientdet_config('tf_efficientdet_d3')
-        checkpoint = torch.load('effdet-pretrained/tf_efficientdet_d3-b0ea2cbc.pth')
+        checkpoint = torch.load('../helmet_detection_for_motorcyclists/effdet-pretrained/tf_efficientdet_d3-b0ea2cbc.pth')
     elif backbone == 'ed4':
         config = get_efficientdet_config('tf_efficientdet_d4')
-        checkpoint = torch.load('effdet-pretrained/tf_efficientdet_d4-5b370b7a.pth')
+        checkpoint = torch.load('../helmet_detection_for_motorcyclists/effdet-pretrained/tf_efficientdet_d4-5b370b7a.pth')
     elif backbone == 'ed5':
         config = get_efficientdet_config('tf_efficientdet_d5')
-        checkpoint = torch.load('effdet-pretrained/tf_efficientdet_d5-ef44aea8.pth')
+        checkpoint = torch.load('../helmet_detection_for_motorcyclists/effdet-pretrained/tf_efficientdet_d5-ef44aea8.pth')
     elif backbone == 'ed6':
         config = get_efficientdet_config('tf_efficientdet_d6')
-        checkpoint = torch.load('effdet-pretrained/tf_efficientdet_d6-51cb0132.pth')
+        checkpoint = torch.load('../helmet_detection_for_motorcyclists/effdet-pretrained/tf_efficientdet_d6-51cb0132.pth')
     elif backbone == 'ed7':
         config = get_efficientdet_config('tf_efficientdet_d7')
-        checkpoint = torch.load('effdet-pretrained/tf_efficientdet_d7-f05bf714.pth')
+        checkpoint = torch.load('../helmet_detection_for_motorcyclists/effdet-pretrained/tf_efficientdet_d7-f05bf714.pth')
     else:
         raise ValueError("BACKBONE!!!")
     model = EfficientDet(config, pretrained_backbone=pretrained_backbone)

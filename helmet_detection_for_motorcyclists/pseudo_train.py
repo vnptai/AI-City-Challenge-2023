@@ -35,7 +35,7 @@ parser.add_argument("--init-lr", default=8e-5, type=float)
 parser.add_argument("--mixup", default=True, type=lambda x: (str(x).lower() == "true"))
 parser.add_argument("--use-amp", default=True, type=lambda x: (str(x).lower() == "true"))
 parser.add_argument("--load-optimizer", default=False, type=lambda x: (str(x).lower() == "true"))
-parser.add_argument("--save-optimizer", default=True, type=lambda x: (str(x).lower() == "true"))
+parser.add_argument("--save-optimizer", default=False, type=lambda x: (str(x).lower() == "true"))
 args = parser.parse_args()
 print(args)
 

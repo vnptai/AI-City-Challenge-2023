@@ -1,5 +1,5 @@
 import os
-import numpy as np 
+import numpy as np
 import cv2
 import random
 from PIL import Image
@@ -9,11 +9,17 @@ from torch.utils.data import Dataset
 import torch.nn.functional as F
 from albumentations import *
 
+from os import listdir
+from os.path import isfile, join
+
 cv2.setNumThreads(0)
 cv2.ocl.setUseOpenCL(False)
 
+
 def get_aug(aug):
-    return Compose(aug, bbox_params=BboxParams(format='pascal_voc', min_area=0, min_visibility=0, label_fields=['category_id']))
+    return Compose(aug, bbox_params=BboxParams(format='pascal_voc', min_area=0, min_visibility=0,
+                                               label_fields=['category_id']))
+
 
 def bb_overlap(boxA, boxB):
     xA = max(boxA[0], boxB[0])
@@ -25,16 +31,50 @@ def bb_overlap(boxA, boxB):
     iou = interArea / float(boxAArea)
     return iou
 
-class WheatDataset(Dataset):
-    def __init__(self, df, img_size, mode='train', network='FasterRCNN', bbox_removal_threshold=0.25):
-        super(WheatDataset,self).__init__()
+
+class HeadTestDataset(Dataset):
+    def __init__(self, df, img_size, root_dir):
+        super(HeadTestDataset, self).__init__()
+        self.df = df
+        image_file_list = [f for f in listdir(df) if isfile(join(df, f))]
+        self.image_ids = []
+        for id in image_file_list:
+            self.image_ids.append(id.split(".")[0])
+        random.shuffle(self.image_ids)
+        self.img_size = img_size
+        self.root_dir = root_dir
+        self.transforms = Resize(height=self.img_size, width=self.img_size, interpolation=1, p=1)
+
+    def __len__(self):
+        return len(self.image_ids)
+
+    def __getitem__(self, index):
+        image_id = self.image_ids[index]
+        img_path = '{}/{}.jpg'.format(self.root_dir, image_id)
+        img = Image.open(img_path)
+        img = img.convert('RGB')
+        img = np.array(img)
+
+        if img.shape[0] != self.img_size or img.shape[1] != self.img_size:
+            img = self.transforms(image=img)['image']
+
+        img = img.astype(np.float32)
+        img /= 255.0
+        img = torch.from_numpy(img).permute(2, 0, 1)
+
+        return img, image_id
+
+
+class HeadDataset(Dataset):
+    def __init__(self, df, img_size, mode='train', network='EffDet', bbox_removal_threshold=0.25):
+        super(HeadDataset, self).__init__()
         self.df = df
         self.image_ids = list(np.unique(self.df.image_id.values))
         self.img_size = img_size
-        self.root_dir = 'dataset/train'
+        self.root_dir = '../aicity_dataset/aicity2023_track5_images'
         self.w2017_ext_dir = 'dataset/wheat2017'
         self.spike_ext_dir = 'dataset/spike-wheat'
-        assert mode in  ['train', 'valid']
+        assert mode in ['train', 'valid']
         self.mode = mode
         assert network in ['FasterRCNN', 'EffDet']
         self.network = network
@@ -87,7 +127,7 @@ class WheatDataset(Dataset):
         return image, boxes
 
     def crop_image(self, image, boxes, xmin, ymin, xmax, ymax):
-        image = image[ymin:ymax,xmin:xmax,:]
+        image = image[ymin:ymax, xmin:xmax, :]
         cutout_box = [xmin, ymin, xmax, ymax]
         result_boxes = []
         for box in boxes:
@@ -96,20 +136,20 @@ class WheatDataset(Dataset):
                 result_boxes.append(box)
         if len(result_boxes) > 0:
             result_boxes = np.array(result_boxes, dtype=float)
-            result_boxes[:,[0,2]] -= xmin
-            result_boxes[:,[1,3]] -= ymin
-            result_boxes[:,[0,2]] = result_boxes[:,[0,2]].clip(0, xmax-xmin)
-            result_boxes[:,[1,3]] = result_boxes[:,[1,3]].clip(0, ymax-ymin)
+            result_boxes[:, [0, 2]] -= xmin
+            result_boxes[:, [1, 3]] -= ymin
+            result_boxes[:, [0, 2]] = result_boxes[:, [0, 2]].clip(0, xmax - xmin)
+            result_boxes[:, [1, 3]] = result_boxes[:, [1, 3]].clip(0, ymax - ymin)
         else:
-            result_boxes = np.array([], dtype=float).reshape(0,4)
+            result_boxes = np.array([], dtype=float).reshape(0, 4)
         return image, result_boxes
-    
+
     def random_crop_resize(self, image, boxes, img_size=1024, p=0.5):
         if random.random() > p:
-            new_img_size = random.randint(int(0.75*img_size), img_size)
-            x = random.randint(0, img_size-new_img_size)
-            y = random.randint(0, img_size-new_img_size)
-            image, boxes = self.crop_image(image, boxes, x, y, x+new_img_size, y+new_img_size)
+            new_img_size = random.randint(int(0.75 * img_size), img_size)
+            x = random.randint(0, img_size - new_img_size)
+            y = random.randint(0, img_size - new_img_size)
+            image, boxes = self.crop_image(image, boxes, x, y, x + new_img_size, y + new_img_size)
             return self.resize_image(image, boxes)
         else:
             if self.img_size != 1024:
@@ -118,7 +158,7 @@ class WheatDataset(Dataset):
                 return image, boxes
 
     def load_image_and_boxes(self, image_id):
-        tmp_df = self.df.loc[self.df['image_id']==image_id]
+        tmp_df = self.df.loc[self.df['image_id'] == image_id]
         source = np.unique(tmp_df.source.values)[0]
         if source == 'wheat2017':
             img_path = '{}/{}.jpg'.format(self.w2017_ext_dir, image_id)
@@ -126,7 +166,7 @@ class WheatDataset(Dataset):
             img_path = '{}/{}.jpg'.format(self.spike_ext_dir, image_id)
         else:
             img_path = '{}/{}.jpg'.format(self.root_dir, image_id)
-        
+
         img = Image.open(img_path)
         img = img.convert('RGB')
         img = np.array(img, dtype=np.uint8)
@@ -135,70 +175,70 @@ class WheatDataset(Dataset):
         for _, row in tmp_df.iterrows():
             if row['isbox'] == False:
                 continue
-            boxes.append([float(row['xmin']),float(row['ymin']),float(row['xmax']),float(row['ymax'])])
+            boxes.append([float(row['xmin']), float(row['ymin']), float(row['xmax']), float(row['ymax'])])
 
         boxes = self.refine_boxes(boxes)
         if len(boxes) > 0:
             boxes = np.array(boxes, dtype=float)
         else:
-            boxes = np.array([], dtype=float).reshape(0,4)
+            boxes = np.array([], dtype=float).reshape(0, 4)
         return img, boxes, source
-    
-    def load_cutmix_image_and_boxes(self, image_id, imsize=1024):   #custom mosaic data augmentation
+
+    def load_cutmix_image_and_boxes(self, image_id, imsize=1024):  # custom mosaic data augmentation
         image_ids = self.image_ids.copy()
         image_ids.remove(image_id)
         cutmix_image_ids = [image_id] + random.sample(image_ids, 3)
         result_image = np.full((imsize, imsize, 3), 1, dtype=np.uint8)
         result_boxes = []
-        
+
         xc, yc = [int(random.uniform(imsize * 0.25, imsize * 0.75)) for _ in range(2)]
         for i, img_id in enumerate(cutmix_image_ids):
             image, boxes, source = self.load_image_and_boxes(img_id)
             if source == 'spike':
                 height, width = image.shape[0:2]
                 if i == 0 or i == 3:
-                    image, boxes = self.crop_image(image, boxes, xmin=width-1024, ymin=0, xmax=width, ymax=1024)
+                    image, boxes = self.crop_image(image, boxes, xmin=width - 1024, ymin=0, xmax=width, ymax=1024)
                 else:
                     image, boxes = self.crop_image(image, boxes, xmin=0, ymin=0, xmax=1024, ymax=1024)
             if i == 0:
-                image, boxes = self.crop_image(image, boxes, imsize-xc, imsize-yc, imsize, imsize)
-                result_image[0:yc, 0:xc,:] = image
+                image, boxes = self.crop_image(image, boxes, imsize - xc, imsize - yc, imsize, imsize)
+                result_image[0:yc, 0:xc, :] = image
                 result_boxes.extend(boxes)
             elif i == 1:
-                image, boxes = self.crop_image(image, boxes, 0, imsize-yc, imsize-xc, imsize)
+                image, boxes = self.crop_image(image, boxes, 0, imsize - yc, imsize - xc, imsize)
                 result_image[0:yc, xc:imsize, :] = image
                 if boxes.shape[0] > 0:
-                    boxes[:,[0,2]] += xc
+                    boxes[:, [0, 2]] += xc
                 result_boxes.extend(boxes)
             elif i == 2:
-                image, boxes = self.crop_image(image, boxes, 0, 0, imsize-xc, imsize-yc)
+                image, boxes = self.crop_image(image, boxes, 0, 0, imsize - xc, imsize - yc)
                 result_image[yc:imsize, xc:imsize, :] = image
                 if boxes.shape[0] > 0:
-                    boxes[:,[0,2]] += xc
-                    boxes[:,[1,3]] += yc
+                    boxes[:, [0, 2]] += xc
+                    boxes[:, [1, 3]] += yc
                 result_boxes.extend(boxes)
             else:
-                image, boxes = self.crop_image(image, boxes, imsize-xc, 0, imsize, imsize-yc)
+                image, boxes = self.crop_image(image, boxes, imsize - xc, 0, imsize, imsize - yc)
                 result_image[yc:imsize, 0:xc, :] = image
                 if boxes.shape[0] > 0:
-                    boxes[:,[1,3]] += yc
+                    boxes[:, [1, 3]] += yc
                 result_boxes.extend(boxes)
             del image
             del boxes
         del cutmix_image_ids
         del image_ids
         if len(result_boxes) == 0:
-            result_boxes = np.array([], dtype=float).reshape(0,4)
+            result_boxes = np.array([], dtype=float).reshape(0, 4)
         else:
             result_boxes = np.vstack(result_boxes)
-            result_boxes[:,[0,2]] = result_boxes[:,[0,2]].clip(0, imsize)
-            result_boxes[:,[1,3]] = result_boxes[:,[1,3]].clip(0, imsize)
+            result_boxes[:, [0, 2]] = result_boxes[:, [0, 2]].clip(0, imsize)
+            result_boxes[:, [1, 3]] = result_boxes[:, [1, 3]].clip(0, imsize)
         return result_image, result_boxes
-    
+
     def __getitem__(self, index):
         image_id = self.image_ids[index]
         if self.mode == 'train':
-            while(True):
+            while (True):
                 if random.random() > 0.5:
                     image, boxes, source = self.load_image_and_boxes(image_id)
                     if source == 'spike':
@@ -206,7 +246,8 @@ class WheatDataset(Dataset):
                         if random.random() > 0.5:
                             image, boxes = self.crop_image(image, boxes, xmin=0, ymin=0, xmax=1024, ymax=1024)
                         else:
-                            image, boxes = self.crop_image(image, boxes, xmin=width-1024, ymin=0, xmax=width, ymax=1024)
+                            image, boxes = self.crop_image(image, boxes, xmin=width - 1024, ymin=0, xmax=width,
+                                                           ymax=1024)
                 else:
                     image, boxes = self.load_cutmix_image_and_boxes(image_id)
 
@@ -230,7 +271,7 @@ class WheatDataset(Dataset):
                     "labels": torch.zeros(0, dtype=torch.int64)
                 }
             else:
-                boxes[:,[0,1,2,3]] = boxes[:,[1,0,3,2]]
+                boxes[:, [0, 1, 2, 3]] = boxes[:, [1, 0, 3, 2]]
                 target = {
                     'boxes': torch.as_tensor(boxes, dtype=torch.float32),
                     'labels': torch.ones((boxes.shape[0],), dtype=torch.int64)
@@ -250,15 +291,16 @@ class WheatDataset(Dataset):
                 target['labels'] = torch.ones((boxes.shape[0],), dtype=torch.int64)
                 target['area'] = torch.as_tensor(area, dtype=torch.float32)
                 target['iscrowd'] = torch.zeros((boxes.shape[0],), dtype=torch.int64)
-            
+
         image = image.astype(np.float32)
         image /= 255.0
-        image = torch.from_numpy(image).permute(2,0,1)
+        image = torch.from_numpy(image).permute(2, 0, 1)
         return image, target
 
-class WheatTestset(Dataset):
+
+class HeadTestset(Dataset):
     def __init__(self, df, img_size, root_dir='dataset/train', shuffle=True):
-        super(WheatTestset,self).__init__()
+        super(HeadTestset, self).__init__()
         self.df = df
         self.image_ids = list(np.unique(self.df.image_id.values))
         if shuffle:
@@ -281,17 +323,18 @@ class WheatTestset(Dataset):
             img = self.transforms(image=img)['image']
         img = img.astype(np.float32)
         img /= 255.0
-        img = torch.from_numpy(img).permute(2,0,1)
+        img = torch.from_numpy(img).permute(2, 0, 1)
 
         return img, image_id
 
-class WheatPseudoTestset(Dataset):
+
+class Headpseudotestset(Dataset):
     def __init__(self, df, img_size, mode='train', bbox_removal_threshold=0.25):
-        super(WheatPseudoTestset,self).__init__()
+        super(Headpseudotestset, self).__init__()
         self.df = df
         self.image_paths = list(np.unique(self.df.image_path.values))
         self.img_size = img_size
-        assert mode in  ['train', 'valid']
+        assert mode in ['train', 'valid']
         self.mode = mode
         self.bbox_removal_threshold = bbox_removal_threshold
         if self.mode == 'train':
@@ -327,8 +370,8 @@ class WheatPseudoTestset(Dataset):
     def refine_boxes(self, boxes):
         result_boxes = []
         for box in boxes:
-            if box[2] - box[0] < 10 or box[3] - box[1] < 10:
-                continue
+            # if box[2] - box[0] < 10 or box[3] - box[1] < 10:
+            #     continue
             result_boxes.append(box)
         result_boxes = np.array(result_boxes)
         return result_boxes
@@ -342,7 +385,7 @@ class WheatPseudoTestset(Dataset):
         return image, boxes
 
     def crop_image(self, image, boxes, xmin, ymin, xmax, ymax):
-        image = image[ymin:ymax,xmin:xmax,:]
+        image = image[ymin:ymax, xmin:xmax, :]
         cutout_box = [xmin, ymin, xmax, ymax]
         result_boxes = []
         for box in boxes:
@@ -351,20 +394,20 @@ class WheatPseudoTestset(Dataset):
                 result_boxes.append(box)
         if len(result_boxes) > 0:
             result_boxes = np.array(result_boxes, dtype=float)
-            result_boxes[:,[0,2]] -= xmin
-            result_boxes[:,[1,3]] -= ymin
-            result_boxes[:,[0,2]] = result_boxes[:,[0,2]].clip(0, xmax-xmin)
-            result_boxes[:,[1,3]] = result_boxes[:,[1,3]].clip(0, ymax-ymin)
+            result_boxes[:, [0, 2]] -= xmin
+            result_boxes[:, [1, 3]] -= ymin
+            result_boxes[:, [0, 2]] = result_boxes[:, [0, 2]].clip(0, xmax - xmin)
+            result_boxes[:, [1, 3]] = result_boxes[:, [1, 3]].clip(0, ymax - ymin)
         else:
-            result_boxes = np.array([], dtype=float).reshape(0,4)
+            result_boxes = np.array([], dtype=float).reshape(0, 4)
         return image, result_boxes
-    
+
     def random_crop_resize(self, image, boxes, img_size=1024, p=0.5):
         if random.random() > p:
-            new_img_size = random.randint(int(0.75*img_size), img_size)
-            x = random.randint(0, img_size-new_img_size)
-            y = random.randint(0, img_size-new_img_size)
-            image, boxes = self.crop_image(image, boxes, x, y, x+new_img_size, y+new_img_size)
+            new_img_size = random.randint(int(0.75 * img_size), img_size)
+            x = random.randint(0, img_size - new_img_size)
+            y = random.randint(0, img_size - new_img_size)
+            image, boxes = self.crop_image(image, boxes, x, y, x + new_img_size, y + new_img_size)
             return self.resize_image(image, boxes)
         else:
             if self.img_size != 1024:
@@ -373,7 +416,7 @@ class WheatPseudoTestset(Dataset):
                 return image, boxes
 
     def load_image_and_boxes(self, image_path):
-        tmp_df = self.df.loc[self.df['image_path']==image_path]
+        tmp_df = self.df.loc[self.df['image_path'] == image_path]
 
         img = Image.open(image_path)
         img = img.convert('RGB')
@@ -383,7 +426,7 @@ class WheatPseudoTestset(Dataset):
         for _, row in tmp_df.iterrows():
             if row['isbox'] == False:
                 continue
-            boxes.append([float(row['xmin']),float(row['ymin']),float(row['xmax']),float(row['ymax'])])
+            boxes.append([float(row['xmin']), float(row['ymin']), float(row['xmax']), float(row['ymax'])])
         boxes = self.refine_boxes(boxes)
 
         if img.shape[0] != 1024 or img.shape[1] != 1024:
@@ -399,10 +442,10 @@ class WheatPseudoTestset(Dataset):
         if len(boxes) > 0:
             boxes = np.array(boxes, dtype=float)
         else:
-            boxes = np.array([], dtype=float).reshape(0,4)
+            boxes = np.array([], dtype=float).reshape(0, 4)
         return img, boxes
-    
-    def load_cutmix_image_and_boxes(self, image_path, imsize=1024):     #custom mosaic data augmentation
+
+    def load_cutmix_image_and_boxes(self, image_path, imsize=1024):  # custom mosaic data augmentation
         image_paths = self.image_paths.copy()
         image_paths.remove(image_path)
         cutmix_image_paths = [image_path] + random.sample(image_paths, 3)
@@ -412,44 +455,44 @@ class WheatPseudoTestset(Dataset):
         for i, img_path in enumerate(cutmix_image_paths):
             image, boxes = self.load_image_and_boxes(img_path)
             if i == 0:
-                image, boxes = self.crop_image(image, boxes, imsize-xc, imsize-yc, imsize, imsize)
-                result_image[0:yc, 0:xc,:] = image
+                image, boxes = self.crop_image(image, boxes, imsize - xc, imsize - yc, imsize, imsize)
+                result_image[0:yc, 0:xc, :] = image
                 result_boxes.extend(boxes)
             elif i == 1:
-                image, boxes = self.crop_image(image, boxes, 0, imsize-yc, imsize-xc, imsize)
+                image, boxes = self.crop_image(image, boxes, 0, imsize - yc, imsize - xc, imsize)
                 result_image[0:yc, xc:imsize, :] = image
                 if boxes.shape[0] > 0:
-                    boxes[:,[0,2]] += xc
+                    boxes[:, [0, 2]] += xc
                 result_boxes.extend(boxes)
             elif i == 2:
-                image, boxes = self.crop_image(image, boxes, 0, 0, imsize-xc, imsize-yc)
+                image, boxes = self.crop_image(image, boxes, 0, 0, imsize - xc, imsize - yc)
                 result_image[yc:imsize, xc:imsize, :] = image
                 if boxes.shape[0] > 0:
-                    boxes[:,[0,2]] += xc
-                    boxes[:,[1,3]] += yc
+                    boxes[:, [0, 2]] += xc
+                    boxes[:, [1, 3]] += yc
                 result_boxes.extend(boxes)
             else:
-                image, boxes = self.crop_image(image, boxes, imsize-xc, 0, imsize, imsize-yc)
+                image, boxes = self.crop_image(image, boxes, imsize - xc, 0, imsize, imsize - yc)
                 result_image[yc:imsize, 0:xc, :] = image
                 if boxes.shape[0] > 0:
-                    boxes[:,[1,3]] += yc
+                    boxes[:, [1, 3]] += yc
                 result_boxes.extend(boxes)
             del image
             del boxes
         del cutmix_image_paths
         del image_paths
         if len(result_boxes) == 0:
-            result_boxes = np.array([], dtype=float).reshape(0,4)
+            result_boxes = np.array([], dtype=float).reshape(0, 4)
         else:
             result_boxes = np.vstack(result_boxes)
-            result_boxes[:,[0,2]] = result_boxes[:,[0,2]].clip(0, imsize)
-            result_boxes[:,[1,3]] = result_boxes[:,[1,3]].clip(0, imsize)
+            result_boxes[:, [0, 2]] = result_boxes[:, [0, 2]].clip(0, imsize)
+            result_boxes[:, [1, 3]] = result_boxes[:, [1, 3]].clip(0, imsize)
         return result_image, result_boxes
-    
+
     def __getitem__(self, index):
         image_path = self.image_paths[index]
         if self.mode == 'train':
-            while(True):
+            while (True):
                 if random.random() > 0.5:
                     image, boxes = self.load_image_and_boxes(image_path)
                 else:
@@ -473,7 +516,7 @@ class WheatPseudoTestset(Dataset):
                 "labels": torch.zeros(0, dtype=torch.int64)
             }
         else:
-            boxes[:,[0,1,2,3]] = boxes[:,[1,0,3,2]]
+            boxes[:, [0, 1, 2, 3]] = boxes[:, [1, 0, 3, 2]]
             target = {
                 'boxes': torch.as_tensor(boxes, dtype=torch.float32),
                 'labels': torch.ones((boxes.shape[0],), dtype=torch.int64)
@@ -481,25 +524,27 @@ class WheatPseudoTestset(Dataset):
 
         image = image.astype(np.float32)
         image /= 255.0
-        image = torch.from_numpy(image).permute(2,0,1)
+        image = torch.from_numpy(image).permute(2, 0, 1)
         return image, target
 
-class BaseWheatTTA:
+
+class BaseHeadTTA:
     def augment(self, images):
         raise NotImplementedError
 
     def prepare_boxes(self, boxes):
         result_boxes = boxes.copy()
-        result_boxes[:,0] = np.min(boxes[:, [0,2]], axis=1)
-        result_boxes[:,2] = np.max(boxes[:, [0,2]], axis=1)
-        result_boxes[:,1] = np.min(boxes[:, [1,3]], axis=1)
-        result_boxes[:,3] = np.max(boxes[:, [1,3]], axis=1)
+        result_boxes[:, 0] = np.min(boxes[:, [0, 2]], axis=1)
+        result_boxes[:, 2] = np.max(boxes[:, [0, 2]], axis=1)
+        result_boxes[:, 1] = np.min(boxes[:, [1, 3]], axis=1)
+        result_boxes[:, 3] = np.max(boxes[:, [1, 3]], axis=1)
         return result_boxes
-    
+
     def deaugment_boxes(self, boxes):
         raise NotImplementedError
 
-class TTAHorizontalFlip(BaseWheatTTA):
+
+class TTAHorizontalFlip(BaseHeadTTA):
     def __init__(self, image_size):
         self.image_size = image_size
 
@@ -508,12 +553,13 @@ class TTAHorizontalFlip(BaseWheatTTA):
 
     def effdet_augment(self, images):
         return images.flip(2)
-    
+
     def deaugment_boxes(self, boxes):
-        boxes[:, [1,3]] = self.image_size - boxes[:, [3,1]]
+        boxes[:, [1, 3]] = self.image_size - boxes[:, [3, 1]]
         return self.prepare_boxes(boxes)
 
-class TTAVerticalFlip(BaseWheatTTA):
+
+class TTAVerticalFlip(BaseHeadTTA):
     def __init__(self, image_size):
         self.image_size = image_size
 
@@ -522,26 +568,28 @@ class TTAVerticalFlip(BaseWheatTTA):
 
     def effdet_augment(self, images):
         return images.flip(3)
-    
+
     def deaugment_boxes(self, boxes):
-        boxes[:, [0,2]] = self.image_size - boxes[:, [2,0]]
+        boxes[:, [0, 2]] = self.image_size - boxes[:, [2, 0]]
         return boxes
 
-class TTARotate90(BaseWheatTTA):
+
+class TTARotate90(BaseHeadTTA):
     def __init__(self, image_size):
         self.image_size = image_size
-    
+
     def fasterrcnn_augment(self, images):
         return list(torch.rot90(image, 1, (1, 2)) for image in images)
-    
+
     def effdet_augment(self, images):
         return torch.rot90(images, 1, (2, 3))
-    
+
     def deaugment_boxes(self, boxes):
         res_boxes = boxes.copy()
-        res_boxes[:, [0,2]] = self.image_size - boxes[:, [1,3]]
-        res_boxes[:, [1,3]] = boxes[:, [2,0]]
+        res_boxes[:, [0, 2]] = self.image_size - boxes[:, [1, 3]]
+        res_boxes[:, [1, 3]] = boxes[:, [2, 0]]
         return self.prepare_boxes(res_boxes)
+
 
 class TTACompose:
     def __init__(self, transforms):
@@ -559,10 +607,10 @@ class TTACompose:
 
     def prepare_boxes(self, boxes):
         result_boxes = boxes.copy()
-        result_boxes[:,0] = np.min(boxes[:, [0,2]], axis=1)
-        result_boxes[:,2] = np.max(boxes[:, [0,2]], axis=1)
-        result_boxes[:,1] = np.min(boxes[:, [1,3]], axis=1)
-        result_boxes[:,3] = np.max(boxes[:, [1,3]], axis=1)
+        result_boxes[:, 0] = np.min(boxes[:, [0, 2]], axis=1)
+        result_boxes[:, 2] = np.max(boxes[:, [0, 2]], axis=1)
+        result_boxes[:, 1] = np.min(boxes[:, [1, 3]], axis=1)
+        result_boxes[:, 3] = np.max(boxes[:, [1, 3]], axis=1)
         return result_boxes
 
     def deaugment_boxes(self, boxes):

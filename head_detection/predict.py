@@ -19,7 +19,7 @@ from torchvision.models.detection.rpn import AnchorGenerator
 from torchvision.models.detection.backbone_utils import resnet_fpn_backbone
 # from apex import amp
 from evaluation import calculate_final_score
-from dataset import WheatTestset
+from dataset import HeadTestset
 from dataset import TTAHorizontalFlip, TTAVerticalFlip, TTARotate90, TTACompose
 from itertools import product
 
@@ -69,7 +69,7 @@ if __name__ == "__main__":
     for fold in args.folds:
         valid_df = df.loc[df['fold'] == fold]
 
-        valid_dataset = WheatTestset(df=valid_df, img_size=args.img_size, root_dir='../global-wheat-dection-2020/dataset/train')
+        valid_dataset = HeadTestset(df=valid_df, img_size=args.img_size, root_dir='../global-wheat-dection-2020/dataset/train')
         valid_loader = DataLoader(valid_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.workers, collate_fn=collate_fn)
 
         for image_id in list(np.unique(valid_df.image_id.values)):

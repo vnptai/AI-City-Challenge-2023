@@ -104,6 +104,6 @@ if __name__ == "__main__":
     torch.cuda.empty_cache()
     gc.collect()
 
-    save_dict(box_pred, 'pkl/{}_{}_{}_box_pred_train.pkl'.format(args.network, args.backbone, args.img_size))
+    save_dict(box_pred, 'pkl/{}_{}_{}_box_pred.pkl'.format(args.network, args.backbone, args.img_size))
     save_dict(score_pred, 'pkl/{}_{}_{}_score_pred.pkl'.format(args.network, args.backbone, args.img_size))
     save_dict(label_pred, 'pkl/{}_{}_{}_label_pred.pkl'.format(args.network, args.backbone, args.img_size))

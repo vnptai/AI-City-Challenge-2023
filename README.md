@@ -37,13 +37,14 @@ python effdet_train.py --folds 0 1 --backbone ed7 --img-size 1024 --batch-size 8
 ### Pseudo label
 ```commandline
 python predict.py --folds 1 --backbone ed5 --img-size 768 --batch-size 8
-python predict.py --folds 1 --backbone ed6 --img-size 640 --batch-size 8
 python predict.py --folds 0 1 --backbone ed6 --img-size 768 --batch-size 8
 python predict.py --folds 0 --backbone ed7 --img-size 768 --batch-size 8
 python predict.py --folds 0 1 2 --backbone ed7 --img-size 896 --batch-size 8
 python predict.py --folds 0 1 --backbone ed7 --img-size 1024 --batch-size 8
 python ensemble.py
-
+python pseudo_train.py --pretrain-path checkpoints/effdet_ed6_640_fold1.pth --checkpoint-path ./effdet_ed6_640_fold1.pth 
+python predict.py --folds 1 --backbone ed6 --img-size 640 --batch-size 8
+python finetune_label.py
 ```
 
 
