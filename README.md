@@ -3,7 +3,7 @@ This repo includes solution for AICity2023 Challenge Track 5 - Detecting Violati
 
 ![framework](GeneralPipline.png)
 # Installation
-Python 3.7 or later with dependencies listed in requirements.txt. Run the below command for install dependencies:
+Python 3.8 or later with dependencies listed in requirements.txt. Run the below command for install dependencies:
 ```commandline
 pip install -r requirements.txt
 ```
