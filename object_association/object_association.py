@@ -166,7 +166,7 @@ class Object_Association(object):
                         if frame_object[-1] > 0.1:
                             frame_motors.append(Motor(bbox=frame_object))
                     else:
-                        if frame_object[-1] > 0.2:
+                        if frame_object[-1] > 0.1:
                             frame_humans.append(Human(bbox=frame_object))
 
             ### Attach head to correspond human
