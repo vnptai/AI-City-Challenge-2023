@@ -12,3 +12,4 @@ omegaconf
 imgaug==0.4.0
 numba
 ensemble_boxes
+lap

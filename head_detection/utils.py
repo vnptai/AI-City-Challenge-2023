@@ -1,6 +1,5 @@
 import numpy as np
 import pickle
-from evaluation import calculate_final_score
 from ensemble_boxes import weighted_boxes_fusion
 import os
 import pandas as pd 

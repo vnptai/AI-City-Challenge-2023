@@ -55,7 +55,7 @@ def emsemble_obj(output_txt_file, image_ids):
 
 
 if __name__ == '__main__':
-    df = 'dataset/test/'
+    df = '../aicity_dataset/aicity2023_track5_test_images/'
     image_file_list = [f for f in listdir(df) if isfile(join(df, f))]
     image_ids = []
     for id in image_file_list:
