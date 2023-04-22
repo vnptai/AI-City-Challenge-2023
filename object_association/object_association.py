@@ -57,7 +57,7 @@ class Object_Association(object):
                 remove_motor_without_driver=REMOVE_MOTOR_WIHOUT_DRIVER,
                 head_thresh=0.14,
                 conf_thres=0.2, 
-                head_motor_overlap_thresh=0.75):
+                head_motor_overlap_thresh=0.3):
         self.head_motor_overlap_thresh = head_motor_overlap_thresh
         self.remove_small_objs_rule = remove_small_objs_rule
         self.overlap_60_rule = overlap_60_rule
