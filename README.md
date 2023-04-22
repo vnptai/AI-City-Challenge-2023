@@ -79,7 +79,7 @@ After running the executable, the result file will be received as a head_results
 In this step we used the result files of step 1 and step 2 and combined with the module object association to get the final result
 
 ```commandline
-python infer.py --video_path AICityChallenge_track5_video_test_folder --motorcyclist_helmet_output helmet_detection_for_motorcyclists/effdet_ed6_640_pseudo.txt --head_output head_detection/effdet_ed7_768_head.txt
+python infer.py --video-folder aicity_dataset/aicity2023_track5_test/videos/ --motorcyclist_helmet_output helmet_detection_for_motorcyclists/effdet_ed6_640_pseudo.txt --head_output head_detection/effdet_ed7_768_head.txt
 ```
 
 ## Note: We execute the training with one DGX node with 8 NVIDIA A100-40GB GPU
