@@ -72,8 +72,6 @@ class HeadDataset(Dataset):
         self.image_ids = list(np.unique(self.df.image_id.values))
         self.img_size = img_size
         self.root_dir = '../aicity_dataset/aicity2023_track5_images'
-        self.w2017_ext_dir = 'dataset/wheat2017'
-        self.spike_ext_dir = 'dataset/spike-wheat'
         assert mode in ['train', 'valid']
         self.mode = mode
         assert network in ['FasterRCNN', 'EffDet']
@@ -160,12 +158,7 @@ class HeadDataset(Dataset):
     def load_image_and_boxes(self, image_id):
         tmp_df = self.df.loc[self.df['image_id'] == image_id]
         source = np.unique(tmp_df.source.values)[0]
-        if source == 'wheat2017':
-            img_path = '{}/{}.jpg'.format(self.w2017_ext_dir, image_id)
-        elif source == 'spike':
-            img_path = '{}/{}.jpg'.format(self.spike_ext_dir, image_id)
-        else:
-            img_path = '{}/{}.jpg'.format(self.root_dir, image_id)
+        img_path = '{}/{}.jpg'.format(self.root_dir, image_id)
 
         img = Image.open(img_path)
         img = img.convert('RGB')
@@ -241,13 +234,6 @@ class HeadDataset(Dataset):
             while (True):
                 if random.random() > 0.5:
                     image, boxes, source = self.load_image_and_boxes(image_id)
-                    if source == 'spike':
-                        height, width = image.shape[0:2]
-                        if random.random() > 0.5:
-                            image, boxes = self.crop_image(image, boxes, xmin=0, ymin=0, xmax=1024, ymax=1024)
-                        else:
-                            image, boxes = self.crop_image(image, boxes, xmin=width - 1024, ymin=0, xmax=width,
-                                                           ymax=1024)
                 else:
                     image, boxes = self.load_cutmix_image_and_boxes(image_id)
 
@@ -276,21 +262,6 @@ class HeadDataset(Dataset):
                     'boxes': torch.as_tensor(boxes, dtype=torch.float32),
                     'labels': torch.ones((boxes.shape[0],), dtype=torch.int64)
                 }
-        else:
-            if boxes.shape[0] == 0:
-                target = {
-                    "boxes": torch.zeros((0, 4), dtype=torch.float32),
-                    "labels": torch.zeros(0, dtype=torch.int64),
-                    "area": torch.zeros(0, dtype=torch.float32),
-                    "iscrowd": torch.zeros((0,), dtype=torch.int64)
-                }
-            else:
-                target = {}
-                area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
-                target['boxes'] = torch.as_tensor(boxes, dtype=torch.float32)
-                target['labels'] = torch.ones((boxes.shape[0],), dtype=torch.int64)
-                target['area'] = torch.as_tensor(area, dtype=torch.float32)
-                target['iscrowd'] = torch.zeros((boxes.shape[0],), dtype=torch.int64)
 
         image = image.astype(np.float32)
         image /= 255.0
