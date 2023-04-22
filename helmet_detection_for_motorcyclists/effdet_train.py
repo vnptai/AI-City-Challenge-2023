@@ -14,11 +14,10 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SequentialSampler, RandomSampler
-# from apex import amp
 
 from models import get_effdet, get_effdet_train
 from warmup_scheduler import GradualWarmupScheduler
-from dataset import WheatDataset
+from dataset import AICityDataset
 
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:512"
 
@@ -109,9 +108,9 @@ if __name__ == "__main__":
         warm_df = pd.concat([train_df], ignore_index=True).sample(frac=1).reset_index(drop=True)
         train_df = pd.concat([train_df], ignore_index=True).sample(frac=1).reset_index(drop=True)
 
-        warm_dataset = WheatDataset(df=warm_df, img_size=args.img_size, mode='train', network='EffDet')
-        train_dataset = WheatDataset(df=train_df, img_size=args.img_size, mode='train', network='EffDet')
-        valid_dataset = WheatDataset(df=valid_df, img_size=args.img_size, mode='valid', network='EffDet')
+        warm_dataset = AICityDataset(df=warm_df, img_size=args.img_size, mode='train', network='EffDet')
+        train_dataset = AICityDataset(df=train_df, img_size=args.img_size, mode='train', network='EffDet')
+        valid_dataset = AICityDataset(df=valid_df, img_size=args.img_size, mode='valid', network='EffDet')
         
         warm_loader = DataLoader(
             warm_dataset,
@@ -228,11 +227,7 @@ if __name__ == "__main__":
                     loss, _, _ = model(images, boxes, labels)
                     if loss == 0 or not torch.isfinite(loss):
                         continue
-                    if args.use_amp:
-                        with amp.scale_loss(loss, optimizer) as scaled_loss:
-                            scaled_loss.backward()
-                    else:
-                        loss.backward()
+                    loss.backward()
                     loss_hist.update(loss.detach().item(), images.size(0))
                     optimizer.step()
                 loop.set_description('Epoch {:03d}/{:03d} | LR: {:.5f}'.format(epoch, args.epochs-1, optimizer.param_groups[0]['lr']))

@@ -28,9 +28,9 @@ def bb_overlap(boxA, boxB):
     return iou
 
 
-class WheatTestDataset(Dataset):
+class AICityTestDataset(Dataset):
     def __init__(self, df, img_size, root_dir):
-        super(WheatTestDataset, self).__init__()
+        super(AICityTestDataset, self).__init__()
         self.df = df
         image_file_list = [f for f in listdir(df) if isfile(join(df, f))]
         self.image_ids = []
@@ -61,9 +61,9 @@ class WheatTestDataset(Dataset):
         return img, image_id
 
 
-class WheatTrainDataset(Dataset):
+class AICityTrainDataset(Dataset):
     def __init__(self, df, img_size, mode='train', bbox_removal_threshold=0.25):
-        super(WheatTrainDataset, self).__init__()
+        super(AICityTrainDataset, self).__init__()
         self.df = df
         self.image_paths = list(np.unique(self.df.image_path.values))
         self.img_size = img_size
@@ -282,18 +282,15 @@ class WheatTrainDataset(Dataset):
         image = torch.from_numpy(image).permute(2,0,1)
         return image, target
 
-class WheatDataset(Dataset):
+class AICityDataset(Dataset):
     def __init__(self, df, img_size, mode='train', network='FasterRCNN', bbox_removal_threshold=0.25):
-        super(WheatDataset,self).__init__()
+        super(AICityDataset, self).__init__()
         self.df = df
         self.image_ids = list(np.unique(self.df.image_id.values))
         self.img_size = img_size
-        self.root_dir = 'dataset/train'
-        self.w2017_ext_dir = 'dataset/wheat2017'
-        self.spike_ext_dir = 'dataset/spike-wheat'
+        self.root_dir = '../aicity_dataset/aicity2023_track5_images'
         assert mode in  ['train', 'valid']
         self.mode = mode
-        assert network in ['FasterRCNN', 'EffDet']
         self.network = network
         self.bbox_removal_threshold = bbox_removal_threshold
         if self.mode == 'train':
@@ -385,13 +382,7 @@ class WheatDataset(Dataset):
     def load_image_and_boxes(self, image_id):
         tmp_df = self.df.loc[self.df['image_id']==image_id]
         source = np.unique(tmp_df.source.values)[0]
-        if source == 'wheat2017':
-            img_path = '{}/{}.jpg'.format(self.w2017_ext_dir, image_id)
-        elif source == 'spike':
-            img_path = '{}/{}.jpg'.format(self.spike_ext_dir, image_id)
-        else:
-            img_path = '{}/{}.jpg'.format(self.root_dir, image_id)
-        
+        img_path = '{}/{}.jpg'.format(self.root_dir, image_id)
         img = Image.open(img_path)
         img = img.convert('RGB')
         img = np.array(img, dtype=np.uint8)
@@ -423,12 +414,6 @@ class WheatDataset(Dataset):
         xc, yc = [int(random.uniform(imsize * 0.25, imsize * 0.75)) for _ in range(2)]
         for i, img_id in enumerate(cutmix_image_ids):
             image, boxes, source, labels = self.load_image_and_boxes(img_id)
-            # if source == 'spike':
-            #     height, width = image.shape[0:2]
-            #     if i == 0 or i == 3:
-            #         image, boxes, labels = self.crop_image(image, boxes, xmin=width-1024, ymin=0, xmax=width, ymax=1024)
-            #     else:
-            #         image, boxes = self.crop_image(image, boxes, xmin=0, ymin=0, xmax=1024, ymax=1024)
             if i == 0:
                 image, boxes, labels = self.crop_image(image, boxes, imsize-xc, imsize-yc, imsize, imsize, labels)
                 result_image[0:yc, 0:xc,:] = image
@@ -476,12 +461,6 @@ class WheatDataset(Dataset):
             while(True):
                 if random.random() > 0.5:
                     image, boxes, source, labels = self.load_image_and_boxes(image_id)
-                    # if source == 'spike':
-                    #     height, width = image.shape[0:2]
-                    #     if random.random() > 0.5:
-                    #         image, boxes = self.crop_image(image, boxes, xmin=0, ymin=0, xmax=1024, ymax=1024)
-                    #     else:
-                    #         image, boxes = self.crop_image(image, boxes, xmin=width-1024, ymin=0, xmax=width, ymax=1024)
                 else:
                     image, boxes, labels = self.load_cutmix_image_and_boxes(image_id)
 
@@ -496,45 +475,27 @@ class WheatDataset(Dataset):
                     break
         else:
             image, boxes, source, labels = self.load_image_and_boxes(image_id)
-            # if self.img_size != 1024:
             image, boxes, labels = self.resize_image(image, boxes, labels)
 
-        if self.network == 'EffDet':
-            if boxes.shape[0] == 0:
-                target = {
-                    "boxes": torch.zeros((0, 4), dtype=torch.float32),
-                    "labels": torch.zeros((0, 1), dtype=torch.int64)
-                }
-            else:
-                boxes[:,[0,1,2,3]] = boxes[:,[1,0,3,2]]
-                target = {
-                    'boxes': torch.as_tensor(boxes, dtype=torch.float32),
-                    'labels': torch.as_tensor(labels, dtype=torch.int64)
-                }
+        if boxes.shape[0] == 0:
+            target = {
+                "boxes": torch.zeros((0, 4), dtype=torch.float32),
+                "labels": torch.zeros((0, 1), dtype=torch.int64)
+            }
         else:
-            if boxes.shape[0] == 0:
-                target = {
-                    "boxes": torch.zeros((0, 4), dtype=torch.float32),
-                    "labels": torch.zeros((0,), dtype=torch.int64),
-                    "area": torch.zeros(0, dtype=torch.float32),
-                    "iscrowd": torch.zeros((0,), dtype=torch.int64)
-                }
-            else:
-                target = {}
-                area = (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0])
-                target['boxes'] = torch.as_tensor(boxes, dtype=torch.float32)
-                target['labels'] = torch.as_tensor(labels, dtype=torch.int64)
-                target['area'] = torch.as_tensor(area, dtype=torch.float32)
-                target['iscrowd'] = torch.zeros((boxes.shape[0],), dtype=torch.int64)
-            
+            boxes[:,[0,1,2,3]] = boxes[:,[1,0,3,2]]
+            target = {
+                'boxes': torch.as_tensor(boxes, dtype=torch.float32),
+                'labels': torch.as_tensor(labels, dtype=torch.int64)
+            }
         image = image.astype(np.float32)
         image /= 255.0
         image = torch.from_numpy(image).permute(2,0,1)
         return image, target
 
-class WheatTestset(Dataset):
+class AICityTestset(Dataset):
     def __init__(self, df, img_size, root_dir='dataset/train', shuffle=True):
-        super(WheatTestset,self).__init__()
+        super(AICityTestset, self).__init__()
         self.df = df
         self.image_ids = list(np.unique(self.df.image_id.values))
         if shuffle:
@@ -561,9 +522,9 @@ class WheatTestset(Dataset):
 
         return img, image_id
 
-class WheatPseudoTestset(Dataset):
+class AICityPseudoTestset(Dataset):
     def __init__(self, df, img_size, mode='train', bbox_removal_threshold=0.25):
-        super(WheatPseudoTestset,self).__init__()
+        super(AICityPseudoTestset, self).__init__()
         self.df = df
         self.image_paths = list(np.unique(self.df.image_path.values))
         self.img_size = img_size
@@ -782,7 +743,7 @@ class WheatPseudoTestset(Dataset):
         image = torch.from_numpy(image).permute(2,0,1)
         return image, target
 
-class BaseWheatTTA:
+class BaseAICityTTA:
     def augment(self, images):
         raise NotImplementedError
 
@@ -797,7 +758,7 @@ class BaseWheatTTA:
     def deaugment_boxes(self, boxes):
         raise NotImplementedError
 
-class TTAHorizontalFlip(BaseWheatTTA):
+class TTAHorizontalFlip(BaseAICityTTA):
     def __init__(self, image_size):
         self.image_size = image_size
 
@@ -811,7 +772,7 @@ class TTAHorizontalFlip(BaseWheatTTA):
         boxes[:, [1,3]] = self.image_size - boxes[:, [3,1]]
         return self.prepare_boxes(boxes)
 
-class TTAVerticalFlip(BaseWheatTTA):
+class TTAVerticalFlip(BaseAICityTTA):
     def __init__(self, image_size):
         self.image_size = image_size
 
@@ -825,7 +786,7 @@ class TTAVerticalFlip(BaseWheatTTA):
         boxes[:, [0,2]] = self.image_size - boxes[:, [2,0]]
         return boxes
 
-class TTARotate90(BaseWheatTTA):
+class TTARotate90(BaseAICityTTA):
     def __init__(self, image_size):
         self.image_size = image_size
     

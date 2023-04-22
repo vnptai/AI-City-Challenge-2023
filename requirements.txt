@@ -1,0 +1,14 @@
+opencv-python
+tqdm
+albumentations
+torch
+timm
+torchvision
+pillow
+pandas
+matplotlib
+warmup-scheduler
+omegaconf
+imgaug==0.4.0
+numba
+ensemble_boxes

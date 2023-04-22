@@ -142,7 +142,7 @@ def visualize_box(video_id_source, image_id_source):
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 if __name__ == '__main__':
-    # gen_image()
+    gen_image()
     # convert_csv_new()
     # visualize_box(34,190)
     convert_csv()
