@@ -30,7 +30,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument("--backbone", default="ed0", type=str,  choices=['ed0', 'ed1', 'ed2', 'ed3', 'ed4', 'ed5', 'ed6', 'ed7'])
+parser.add_argument("--backbone", default="ed7", type=str,  choices=['ed0', 'ed1', 'ed2', 'ed3', 'ed4', 'ed5', 'ed6', 'ed7'])
 parser.add_argument("--img-size", default=768, type=int)
 parser.add_argument("--batch-size", default=1, type=int)
 parser.add_argument("--workers", default=16, type=int)
