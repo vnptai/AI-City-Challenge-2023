@@ -24,7 +24,6 @@ Our solution consists of 3 steps
 ### Training
 The labels file is helmet_detection_for_motorcyclists/dataset/trainset_ai.csv
 
-Please correct the data path in the file config ./helmet_detection_for_motorcyclists/.....
 ```commandline
 cd helmet_detection_for_motorcyclists
 python effdet_train.py --folds 1 --backbone ed5 --img-size 768 --batch-size 8
@@ -48,31 +47,26 @@ python pseudo_train.py --pretrain-path checkpoints/effdet_ed6_640_fold1.pth --ch
 
 
 ### Inference
-Pretrained model of helmet detection for motorcyclists model can be download here. After downloading the pretrained model, please put the file into ...
 
 ```commandline
 python predict.py --folds 1 --backbone ed6 --img-size 640 --batch-size 8
 python finetune_label.py
 ```
-After running the executable, the result file will be received as a motorcyclist_helmet_results.txt in the ./helmet_detection_for_motorcyclists
 
 ## STEP 2 - Head Detection
 ### Training
 The labels file is head_detection/dataset/trainset_head.csv
 
-Please correct the data path in the file config ./head_detection/.....
 ```commandline
 cd head_detection
 python effdet_train.py --folds 1 --backbone ed7 --img-size 768 --batch-size 8
 ```
 ### Inference
-Pretrained model of head detection model can be download here. After downloading the pretrained model, please put the file into ...
 
 ```commandline
 python predict.py --folds 1 --backbone ed7 --img-size 768 --batch-size 8
 python finetune_label.py
 ```
-After running the executable, the result file will be received as a head_results.txt in the ./head_detection
 
 ## STEP 3 - Post processing for tracking
 In this step we used the result files of step 1 and step 2 and combined with the module object association to get the final result
